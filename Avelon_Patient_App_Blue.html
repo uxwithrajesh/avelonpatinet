@@ -185,7 +185,7 @@ function showDoctor(){
  dialog.innerHTML='<div class="row"><span class="avatar portrait portrait--doctor" aria-hidden="true"><span>AR</span></span><button type="button" class="soft" data-doctor-close>Close ×</button></div><h2 id="physician-name">'+clinician.name+'</h2><p>'+clinician.specialty+'</p><p class="muted">'+clinician.clinic+'</p><p style="margin-top:12px">'+clinician.focus+'</p><p class="muted">Demo doctor profile</p>';
  dialog.showModal();
 }
-const doctor=()=>card('<div class="row"><div><h3>Dr. Ananya Rao</h3><p class="muted">Your care doctor</p></div>'+doctorPhoto()+'</div><div class="actions">'+btn('Message','chat','soft')+btn('Book a visit','book')+'</div>');
+const doctor=(showCall=false)=>card('<div class="row"><div><h3>Dr. Ananya Rao</h3><p class="muted">Your care doctor</p></div>'+doctorPhoto()+'</div><div class="actions">'+btn('Message','chat','soft')+(showCall?btn('Call','chat','soft'):'')+btn('Book a visit','book')+'</div>');
 const visits=()=>state.bookings.map((b,i)=>({b,i,time:bookingTime(b.slot)})).filter(visit=>visit.time>=Date.now()).sort((a,b)=>a.time-b.time).map(({b,i})=>card('<div class="row"><div><h3>'+escapeHtml(b.kind)+' consultation</h3><p class="muted">'+escapeHtml(b.slot)+' IST · '+clinician.name+'</p></div><button class="soft" data-visit="'+i+'">Details</button></div>')).join('')||upcomingVisit();
 function bookingTime(slot){
  const match=/^(\d+) Nov · (\d+):(\d+) (AM|PM)$/.exec(slot);
@@ -385,7 +385,7 @@ const wearableOrbit=[
  {value:'98%',icon:'oxygen',name:'Blood oxygen',key:'oxygen'},
  {value:'68 bpm',icon:'pulse',name:'Resting heart rate',key:'pulse'},
  {value:'6,420',icon:'steps',name:'Daily steps',key:'steps'}
-].map(item=>({...item,detail:metrics[item.key].value,trio:metricTrio(metrics[item.key].history[0][1],metrics[item.key].value,item.key==='steps'?'7,000 steps':'Not set'),description:metrics[item.key].date+' · '+metrics[item.key].source,action:'<button class="soft" data-reading="'+item.key+'">View reading history</button>'}));
+].map(item=>({...item,detail:metrics[item.key].value,trio:item.key==='steps'?metricTrio(metrics[item.key].history[0][1],metrics[item.key].value,'7,000 steps'):null,description:metrics[item.key].date+' · '+metrics[item.key].source,action:'<button class="soft" data-reading="'+item.key+'">View reading history</button>'}));
 let selectedExtraLab=0;
 const extraLabs=[
  {value:'104 mg/dL',icon:'glucose',name:'Fasting glucose',detail:'104 mg/dL',description:'Sample result · Released 4 Nov 2026'},
@@ -513,15 +513,17 @@ function setupWeight(form,value){
  syncWeight(form);
 }
 const planPackageDetails=()=>sec('Package details')+card('<dl class="details"><div><dt>Member</dt><dd>Kavitha R.</dd></div><div><dt>Start date</dt><dd>18 Nov 2026</dd></div><div><dt>End date</dt><dd>1 Dec 2026</dd></div><div><dt>Assigned doctor</dt><dd>Dr. Ananya Rao</dd></div><div><dt>Price</dt><dd>Not provided</dd></div><div><dt>Payment</dt><dd>Paid · demo</dd></div></dl>');
+const homeGoalCards=()=>sec('Goals & trends',btn('View all','goals','textbtn'))+'<div class="grid">'+summary()+summary(true)+'</div>';
+const myDoctorSection=()=>sec('My doctor')+doctor(true);
+const wearableSection=()=>sec('Wearable readings',btn('View all','vitals','textbtn'))+orbitPanel('wearable',wearableOrbit);
 function content(){
  switch(page){
- case 'home':return hero(today(),'Your care,<br>in focus.','Kavitha, see your progress and what’s next.')+packageBanner()+daily()+sec('Goals & trends',btn('View all','goals','textbtn'))+'<div class="grid">'+summary()+summary(true)+'</div>'+sec('Wearable readings',btn('View all','vitals','textbtn'))+orbitPanel('wearable',wearableOrbit)+(labOrbit.length?sec('Lab reports',btn('View all','labReports','textbtn'))+orbitPanel('reports',labOrbit):'')+sec('Other actions')+next()+upcomingVisit()+sec('My doctor')+doctor();
+ case 'home':return hero(today(),'Your care,<br>in focus.','Kavitha, see your progress and what’s next.')+packageBanner()+daily()+homeGoalCards()+wearableSection()+(labOrbit.length?sec('Lab reports',btn('View all','labReports','textbtn'))+orbitPanel('reports',labOrbit):'')+sec('Other actions')+next()+upcomingVisit()+myDoctorSection();
  case 'goals':return goalDetails();
  case 'labReports':return back('home')+hero('Lab','Lab reports')+labOrbit.map((r,i)=>card(reportHeading(r.name,r.icon)+labStatus(r)+'<span class="metric">'+r.detail+'</span><p class="muted">'+r.description+'</p><div class="actions">'+r.action+'</div>',i)).join('');
  case 'extraLab':{const r=extraLabs[selectedExtraLab];return back('labReports')+hero('Released lab result',r.name)+card(reportHeading('Result',r.icon)+labStatus(r)+'<span class="metric">'+r.value+'</span><p class="muted">'+r.description+'</p>');}
  case 'schedule':return scheduleDetails();
- case 'plan':return hero('Care plan','What’s next','Your tasks, reports and upcoming visits.')+packageBanner(false)+planPackageDetails()+card('<h3>Included in your plan</h3><p class="muted">Weight management, HbA1c monitoring and care-team access.</p><div class="actions">'+btn('View package','package','soft')+btn('View wearable','device','soft')+'</div>')+daily()+sec('Your actions')+next()+sec('Care team updates')+card(reportHeading('New HbA1c report','report')+labStatus(labOrbit[1])+'<p class="muted">Your last released result is still available.</p>'+btn('View trend','lab','textbtn'))+card('<h3>Care team note</h3><p class="muted">Your doctor will discuss your recent readings at your next check-in.</p><div class="actions">'+(state.updateRead?'<span class="tag">Acknowledged</span>':'<button class="soft" data-read-update>Acknowledge update</button>')+'</div>')+sec('Upcoming visits')+visits();
- case 'doctor':return hero('Care team','My doctor','Message your doctor or book an available appointment.')+doctor()+upcomingVisit()+sec('Previous appointments')+visitHistory();
+ case 'doctor':return hero('Care team','My doctor','Message your doctor or book an available appointment.')+doctor(true)+upcomingVisit()+sec('Previous appointments')+visitHistory();
  case 'profile':return back('home')+'<div class="avatar portrait portrait--patient profilePortrait" aria-hidden="true"><span>KR</span></div>'+hero('Member profile','Kavitha R.')+card('<h3>14-day subscription</h3><p class="muted">Active · Member AV-1042</p><div class="actions">'+btn('View care plan','plan')+btn('Manage care break','break','soft')+btn('Activity history','history','soft')+btn('Preview doctor view','doctorProfile','soft')+'</div>')+breakCard();
  case 'weight':return back('goals')+hero('Weight management','Weight trend')+card('<div class="row"><div><h3>Latest weight</h3><span class="metric">'+latest().value.toFixed(1)+' <small>kg</small></span></div><span class="tag">'+latest().date+'</span></div>'+trend(weights().slice(-6),[68,77])+'<p class="muted">Baseline 74.0 kg · Latest '+latest().value.toFixed(1)+' kg</p><div class="actions">'+btn('Log weight','log')+btn('Ask my doctor','chat','soft')+'</div>');
  case 'lab':return back('goals')+hero('HbA1c monitoring','HbA1c trend')+card(reportHeading('HbA1c result','vial')+labStatus(labOrbit[0])+'<span class="tag">4 Nov 2026</span><span class="metric">6.8 <small>%</small></span>'+trend([7.4,7.1,6.8],[6,8],'violet')+'<p class="muted">Previous released results: 7.4%, 7.1%.</p><div class="actions">'+btn('Ask my doctor','chat','soft')+'</div>')+sec('Report status')+card(reportHeading('New HbA1c report','report')+labStatus(labOrbit[1])+'<p class="muted">Your care team will share the next update here.</p>');
@@ -531,7 +533,8 @@ function content(){
  case 'chat':return chat();
  case 'break':return breakScreen();
  case 'notifications':return back(inboxFrom)+hero('Updates','Notifications')+sec('Your inbox',unread()?'<button class="textbtn" data-mark-all>Mark all read</button>':'')+notifications().map(n=>card('<div class="row"><h3>'+escapeHtml(n.title)+'</h3>'+(!state.notificationRead.includes(n.id)?'<span class="tag">New</span>':'')+'</div><p class="muted">'+escapeHtml(n.detail)+'</p><div class="actions"><button class="soft" data-open-notification="'+n.id+'">View update</button></div>')).join('');
- case 'package':return back('home')+hero('Active subscription','Your package')+packageBanner(false)+planPackageDetails()+sec('Your services')+card('<h3>Care plan and goal tracking</h3><p class="muted">Weight management and HbA1c monitoring</p><div class="actions">'+btn('View my plan','plan','soft')+btn('Contact care team','doctor')+'</div>')+sec('Device')+card('<p class="muted">Wearable tracking preview</p>'+btn('View device','device','textbtn'));
+ case 'plan':
+ case 'package':return back('home')+hero('Active subscription','Your package')+packageBanner(false)+planPackageDetails()+homeGoalCards()+myDoctorSection()+wearableSection();
  case 'vitals':return back('home')+hero('Your measurements','Vitals & readings')+sec('Tracked readings',btn('Device','device','textbtn'))+vitalDetails();
  case 'reading':{const r=metrics[selectedReading];return back('vitals')+hero('Tracked reading',r.label)+card(reportHeading('Latest reading',readingIcons[selectedReading])+statusChip('Recorded')+'<span class="metric">'+r.value+'</span><p class="muted">'+r.date+' · '+r.source+'</p><ul class="history">'+r.history.map(([date,value])=>'<li><span>'+date+'</span><strong>'+value+'</strong></li>').join('')+'</ul><div class="actions">'+btn('Ask my doctor','chat')+'</div>');}
  case 'device':return back('vitals')+hero('Device','Wearable readings')+card('<span class="tag">Sample data</span><h2>Wearable preview</h2><p class="muted">Resting heart rate, blood oxygen and daily steps. Last sample · 21 Nov 2026, 7:35 AM IST.</p><div class="actions">'+btn('View tracked readings','vitals','soft')+'</div>');
@@ -542,7 +545,7 @@ function content(){
  }
 }
 function render(){
- document.body.dataset.page=page;
+ document.body.dataset.page=page==='plan'?'package':page;
  document.body.classList.toggle('chatOpen',page==='chat');
  document.querySelector('header').inert=page==='chat';nav.inert=page==='chat';
  const count=unread(),badge=document.querySelector('.bell .badge');
@@ -556,7 +559,7 @@ function render(){
   form.querySelectorAll('.weightWheel').forEach(wheel=>wheel.addEventListener('scroll',()=>{if(!form.querySelector('.weightPicker').hidden)syncWeight(form);},{passive:true}));
  }
  if(page==='chat'){const thread=screen.querySelector('.thread');thread.scrollTop=thread.scrollHeight;}
- nav.innerHTML=pages.map(([id,label,icon])=>'<button data-tab data-go="'+id+'" '+((page===id||id==='goals'&&['weight','lab','log'].includes(page)||id==='doctor'&&['chat','book','visit'].includes(page))?'aria-current="page"':'')+'><svg class="navIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+icon+'</svg>'+label+'</button>').join('');
+ nav.innerHTML=pages.map(([id,label,icon])=>'<button data-tab data-go="'+id+'" '+((page===id||id==='plan'&&page==='package'||id==='goals'&&['weight','lab','log'].includes(page)||id==='doctor'&&['chat','book','visit'].includes(page))?'aria-current="page"':'')+'><svg class="navIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+icon+'</svg>'+label+'</button>').join('');
 }
 function move(target, focus=true,backward=false){
  if(!routes.includes(target)||target===page||moving)return;
